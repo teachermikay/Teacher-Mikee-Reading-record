@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Teacher Mikee's English Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #ffcfdf;
+            --peach: #fefdca;
+            --blue: #d2e9fb;
+            --lavender: #e1ccec;
+            --text-dark: #5a5a5a;
+            --white: #ffffff;
+            --shadow: 0 8px 15px rgba(0,0,0,0.1);
+            --highlight: #ff85a2; 
+            --grey: #d1d1d1;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: pan-y; /* Requirement 2: Scroll consistency */
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Jua', sans-serif;
+            height: 100%;
+            width: 100%;
+            color: var(--text-dark);
+            background-color: var(--blue);
+            overflow: hidden;
+        }
+
+        .app-container {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Shared Scrollable Container Style - Requirement 2 */
+        .scrollable-screen {
+            display: none;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 2vh;
+            width: 100%;
+            height: 100vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px 0 60px 0;
+            scroll-behavior: smooth;
+        }
+
+        .bg-menu {
+            background-image: url('menu_bg.jpg'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .bg-practice {
+            background-image: none !important;
+            background-color: var(--white);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2vh;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px 30px;
+            border-radius: 50px;
+            box-shadow: var(--shadow);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        h1 { margin: 0; color: #ff85a2; font-size: clamp(1.2rem, 4vw, 2.2rem); }
+
+        #main-menu {
+            width: 100%;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 30px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        #input-panel {
+            display: none;
+            width: 100%;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .title-input {
+            width: 80%;
+            padding: 12px;
+            font-size: 1.2rem;
+            border-radius: 20px;
+            border: 3px solid var(--pink);
+            margin-bottom: 15px;
+            font-family: 'Jua';
+            text-align: center;
+        }
+
+        .sentence-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .sentence-box {
+            padding: 10px;
+            border-radius: 15px;
+            border: 2px solid var(--lavender);
+            font-size: 1rem;
+            font-family: 'Jua';
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            font-family: 'Jua';
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.2s;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+        }
+
+        button:active { transform: scale(0.95); box-shadow: none; }
+
+        .btn-input { background-color: var(--lavender); }
+        .btn-start { background-color: #ff85a2; color: white; font-size: 1.5rem; }
+        .btn-end-practice { background-color: #ff6b6b; color: white; display: none; }
+        .btn-whole-sentence { background-color: #ffd93d; margin-bottom: 1vh; font-size: 1.3rem; }
+        .btn-reset-input { background-color: #ff9aa2; color: white; }
+
+        /* Student Number Grid - Requirement 1 */
+        .number-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .num-box {
+            background-color: var(--peach);
+            border-radius: 20px;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            border: 4px solid white;
+        }
+
+        .num-box.selected { background-color: var(--grey) !important; }
+
+        /* Sentence Box UI */
+        .chibi-box {
+            width: 90%;
+            min-height: 15vh;
+            flex-shrink: 0;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 30px;
+            text-align: center;
+            font-size: clamp(1.2rem, 3.5vh, 2.5rem);
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: var(--shadow);
+            border: 6px solid white;
+            background-color: white;
+            line-height: 1.1;
+        }
+
+        .chibi-box:nth-child(1) { background-color: var(--pink); }
+        .chibi-box:nth-child(2) { background-color: var(--blue); }
+        .chibi-box:nth-child(3) { background-color: var(--peach); }
+        .chibi-box:nth-child(4) { background-color: var(--lavender); }
+
+        .word-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            max-width: 90%;
+            margin-bottom: 2vh;
+            flex-shrink: 0;
+        }
+
+        .word-btn {
+            font-size: clamp(1.8rem, 8vh, 4rem);
+            padding: 10px 25px;
+            background: var(--blue);
+            border-radius: 20px;
+            border-bottom: 6px solid #a6cbe7;
+            cursor: pointer;
+            transition: color 0.3s ease, background-color 0.3s ease;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .word-btn.speaking { background-color: var(--highlight) !important; color: white; border-bottom-color: #e06684; }
+
+        .recording-container { margin-bottom: 2vh; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .btn-rec { background-color: #ff4d4d; color: white; }
+        .btn-stop { background-color: #555; color: white; }
+        .btn-play-rec { background-color: #4CAF50; color: white; }
+        .rec-status { color: #ff4d4d; font-weight: bold; min-width: 100px; }
+
+        .nav-controls { margin-top: 3vh; display: flex; gap: 20px; flex-shrink: 0; padding-bottom: 20px; }
+
+        #reward-star {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 15rem;
+            z-index: 200;
+            animation: starPop 0.8s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes starPop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="container" class="app-container bg-menu">
+    <header id="app-header">
+        <h1>Teacher Mikee's English Hub</h1>
+        <button id="end-practice-btn" class="btn-end-practice">✖ End Practice</button>
+    </header>
+
+    <div id="main-menu">
+        <div id="menu-buttons" class="btn-group">
+            <button class="btn-input" id="btn-show-input">⌨️ INPUT</button>
+            <button class="btn-start" id="btn-main-start">🚀 START</button>
+        </div>
+
+        <div id="input-panel">
+            <input type="text" id="lesson-title" class="title-input" placeholder="Lesson Title">
+            <div class="sentence-grid">
+                <input type="text" class="sentence-box" placeholder="1">
+                <input type="text" class="sentence-box" placeholder="2">
+                <input type="text" class="sentence-box" placeholder="3">
+                <input type="text" class="sentence-box" placeholder="4">
+                <input type="text" class="sentence-box" placeholder="5">
+                <input type="text" class="sentence-box" placeholder="6">
+                <input type="text" class="sentence-box" placeholder="7">
+                <input type="text" class="sentence-box" placeholder="8">
+                <input type="text" class="sentence-box" placeholder="9">
+                <input type="text" class="sentence-box" placeholder="10">
+            </div>
+            <div class="btn-group">
+                <button style="background:var(--peach)" id="btn-save">💾 SAVE LOCAL</button>
+                <button class="btn-reset-input" id="btn-reset-all">🔄 RESET</button> <button style="background:var(--blue)" id="btn-export">📤 EXPORT</button>
+                <button style="background:var(--lavender)" id="btn-import-trigger">📥 IMPORT</button>
+                <input type="file" id="fileInput" style="display:none" accept=".json">
+                <button style="background:#ddd" id="btn-close-input">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="student-screen" class="scrollable-screen">
+        <h2 style="color:#ff85a2">Choose your seat number</h2>
+        <div class="number-grid" id="number-grid">
+            </div>
+    </div>
+
+    <div id="choice-screen" class="scrollable-screen"></div>
+
+    <div id="reading-screen" class="scrollable-screen bg-practice" style="position:fixed; top:0; left:0; z-index:100; padding:20px;">
+        <div class="recording-container">
+            <button id="btn-record" class="btn-rec">🎤 Record</button>
+            <button id="btn-stop-rec" class="btn-stop" disabled>⏹ Stop</button>
+            <button id="btn-play-rec" class="btn-play-rec" disabled>▶️ Play</button>
+            <span id="rec-status" class="rec-status"></span>
+        </div>
+        
+        <button id="btn-read-full" class="btn-whole-sentence">🔊 Read Whole Sentence</button>
+        <div id="word-display" class="word-container"></div>
+        
+        <div class="nav-controls">
+            <button id="btn-back-to-choice" style="background:#ccc">⬅ BACK</button>
+            <button id="btn-finish" style="background:#50c878; color:white; font-size:1.5rem">⭐ FINISH</button>
+        </div>
+    </div>
+
+    <div id="reward-star">⭐</div>
+</div>
+
+<script>
+    /* ============================================================
+       📘 8. DEFAULT CONTENT
+       ============================================================ */
+    const DEFAULT_DATA = {
+        title: "Page 30: The Big Bad Wolf and the House of Bricks",
+        sentences: [
+            "The wolf sees the three little pigs in the house of bricks.",
+            "He says, \"Little pigs, little pigs, let me come in.\"",
+            "No, no, not by the hair of my chinny chin chin!",
+            "I will not let you in!"
+        ]
+    };
+
+    /* ============================================================
+       📱 TOUCH FIX (Requirement 2)
+       ============================================================ */
+    let touchMoved = false;
+    document.addEventListener("touchstart", () => { touchMoved = false; }, { passive: true });
+    document.addEventListener("touchmove", () => { touchMoved = true; }, { passive: true });
+
+    function addTouchSafeListener(element, callback) {
+        element.addEventListener("click", function(e) {
+            if (touchMoved) return;
+            callback(e);
+        });
+    }
+
+    /* ============================================================
+       ☁️ 4. GOOGLE DRIVE AUTO UPLOAD
+       ============================================================ */
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwexWcCAuhtRx9AEuubE0UdlrszWsNvmCM3WLP7r73eiHTW-LBQfY6Z0rmms5qU6pIAEg/exec";
+
+    async function uploadToDrive(blob, fileName) {
+        const reader = new FileReader();
+        reader.onloadend = async function () {
+            const base64data = reader.result.split(',')[1];
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ file: base64data, fileName: fileName }),
+                    headers: { "Content-Type": "application/json" }
+                });
+                alert("✅ Recording uploaded successfully!");
+            } catch (error) {
+                alert("❌ Upload failed. Please try again.");
+            }
+        };
+        reader.readAsDataURL(blob);
+    }
+
+    /* ============================================================
+       🎤 3. VOICE RECORDING (Requirement 3 & 5)
+       ============================================================ */
+    let mediaRecorder;
+    let audioChunks = [];
+    let audioURL = "";
+    let studentNumber = 0;
+    let playbackAudio = new Audio();
+
+    // 🔊 5. Unlock Audio for iPad
+    document.body.addEventListener("click", function() {
+        let unlock = new Audio();
+        unlock.play().catch(()=>{});
+    }, { once: true });
+
+    async function startRecording() {
+        if (typeof MediaRecorder === "undefined") {
+            alert("Recording not supported on this device.");
+            return;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            let options = { mimeType: 'audio/mp4' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'audio/webm' };
+            }
+            mediaRecorder = new MediaRecorder(stream, options);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+            
+            mediaRecorder.onstop = function () {
+                const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                audioURL = URL.createObjectURL(blob);
+                const fileName = `StudentNo_${studentNumber}.mp3`;
+                uploadToDrive(blob, fileName);
+                audioChunks = [];
+                document.getElementById('btn-play-rec').disabled = false;
+                document.getElementById('rec-status').innerText = "";
+            };
+
+            mediaRecorder.start();
+            document.getElementById('btn-record').disabled = true;
+            document.getElementById('btn-stop-rec').disabled = false;
+            document.getElementById('btn-play-rec').disabled = true;
+            document.getElementById('rec-status').innerText = "🔴 Recording...";
+        } catch (err) { alert("Mic Error: " + err.message); }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+            document.getElementById('btn-record').disabled = false;
+            document.getElementById('btn-stop-rec').disabled = true;
+        }
+    }
+
+    function playRecording() {
+        if (!audioURL) return;
+        playbackAudio.src = audioURL;
+        playbackAudio.play().catch(() => { alert("Tap again to play the recording."); });
+    }
+
+    /* ============================================================
+       📖 GAME LOGIC & SYSTEM
+       ============================================================ */
+    const synth = window.speechSynthesis;
+    let currentSentenceText = "";
+    let isReadingSentence = false;
+
+    // Load Default Data
+    function initData() {
+        const saved = localStorage.getItem('mikee_hub_data');
+        const data = saved ? JSON.parse(saved) : DEFAULT_DATA;
+        document.getElementById('lesson-title').value = data.title;
+        const inputs = document.querySelectorAll('.sentence-box');
+        data.sentences.forEach((s, i) => { if(inputs[i]) inputs[i].value = s; });
+    }
+
+    // 🔁 7. RESET FUNCTION
+    function resetInputInterface() {
+        if(confirm("Are you sure you want to reset?")){
+            document.getElementById('lesson-title').value = "";
+            document.querySelectorAll('.sentence-box').forEach(i => i.value = "");
+            localStorage.removeItem('mikee_hub_data');
+        }
+    }
+
+    // 🧩 1. STUDENT NUMBER SELECTION
+    function initStudentGrid() {
+        const grid = document.getElementById('number-grid');
+        grid.innerHTML = '';
+        for(let i=1; i<=20; i++) {
+            const box = document.createElement('div');
+            box.className = 'num-box';
+            box.innerText = i;
+            addTouchSafeListener(box, () => {
+                studentNumber = i;
+                document.querySelectorAll('.num-box').forEach(b => b.classList.remove('selected'));
+                box.classList.add('selected');
+                setTimeout(showSentenceChoice, 300);
+            });
+            grid.appendChild(box);
+        }
+    }
+
+    function showSentenceChoice() {
+        const all = Array.from(document.querySelectorAll('.sentence-box')).map(i => i.value.trim()).filter(t => t.length > 0);
+        if (all.length < 1) return alert("No sentences found!");
+        
+        const selected = all.sort(() => 0.5 - Math.random()).slice(0, 4);
+        const grid = document.getElementById('choice-screen');
+        grid.innerHTML = '';
+        
+        selected.forEach(text => {
+            const div = document.createElement('div');
+            div.className = 'chibi-box';
+            div.innerText = text;
+            addTouchSafeListener(div, () => openPractice(text));
+            grid.appendChild(div);
+        });
+
+        document.getElementById('student-screen').style.display = 'none';
+        grid.style.display = 'flex';
+        document.getElementById('end-practice-btn').style.display = 'block';
+        document.getElementById('container').classList.replace('bg-menu', 'bg-practice');
+    }
+
+    function openPractice(sentence) {
+        currentSentenceText = sentence;
+        audioURL = "";
+        document.getElementById('btn-play-rec').disabled = true;
+        const display = document.getElementById('word-display');
+        display.innerHTML = '';
+        sentence.split(/\s+/).forEach(word => {
+            const btn = document.createElement('div');
+            btn.className = 'word-btn';
+            btn.innerText = word;
+            addTouchSafeListener(btn, () => {
+                if (isReadingSentence) return;
+                synth.cancel();
+                const utter = new SpeechSynthesisUtterance(word);
+                utter.rate = 0.7;
+                btn.classList.add('speaking');
+                utter.onend = () => btn.classList.remove('speaking');
+                synth.speak(utter);
+            });
+            display.appendChild(btn);
+        });
+        document.getElementById('choice-screen').style.display = 'none';
+        document.getElementById('reading-screen').style.display = 'flex';
+    }
+
+    function readFull() {
+        if (isReadingSentence) return;
+        synth.cancel();
+        isReadingSentence = true;
+        const utter = new SpeechSynthesisUtterance(currentSentenceText);
+        utter.rate = 0.7;
+        utter.onend = () => isReadingSentence = false;
+        synth.speak(utter);
+    }
+
+    /* ============================================================
+       EVENT BINDINGS
+       ============================================================ */
+    addTouchSafeListener(document.getElementById('btn-main-start'), () => {
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('student-screen').style.display = 'flex';
+        initStudentGrid();
+    });
+
+    addTouchSafeListener(document.getElementById('btn-show-input'), () => {
+        document.getElementById('input-panel').style.display = 'block';
+        document.getElementById('menu-buttons').style.display = 'none';
+    });
+
+    addTouchSafeListener(document.getElementById('btn-close-input'), () => {
+        document.getElementById('input-panel').style.display = 'none';
+        document.getElementById('menu-buttons').style.display = 'flex';
+    });
+
+    addTouchSafeListener(document.getElementById('btn-save'), () => {
+        const data = {
+            title: document.getElementById('lesson-title').value,
+            sentences: Array.from(document.querySelectorAll('.sentence-box')).map(i => i.value)
+        };
+        localStorage.setItem('mikee_hub_data', JSON.stringify(data));
+        alert("Saved! ✨");
+    });
+
+    addTouchSafeListener(document.getElementById('btn-reset-all'), resetInputInterface);
+
+    addTouchSafeListener(document.getElementById('btn-record'), startRecording);
+    addTouchSafeListener(document.getElementById('btn-stop-rec'), stopRecording);
+    addTouchSafeListener(document.getElementById('btn-play-rec'), playRecording);
+    addTouchSafeListener(document.getElementById('btn-read-full'), readFull);
+
+    addTouchSafeListener(document.getElementById('btn-back-to-choice'), () => {
+        document.getElementById('reading-screen').style.display = 'none';
+        document.getElementById('choice-screen').style.display = 'flex';
+    });
+
+    addTouchSafeListener(document.getElementById('btn-finish'), () => {
+        const star = document.getElementById('reward-star');
+        star.style.display = 'block';
+        setTimeout(() => {
+            star.style.display = 'none';
+            document.getElementById('reading-screen').style.display = 'none';
+            document.getElementById('choice-screen').style.display = 'flex';
+        }, 1000);
+    });
+
+    addTouchSafeListener(document.getElementById('end-practice-btn'), () => {
+        location.reload(); // Quick reset to menu
+    });
+
+    // Export/Import
+    addTouchSafeListener(document.getElementById('btn-export'), () => {
+        const data = {
+            title: document.getElementById('lesson-title').value,
+            sentences: Array.from(document.querySelectorAll('.sentence-box')).map(i => i.value)
+        };
+        const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'Lesson.json';
+        a.click();
+    });
+
+    addTouchSafeListener(document.getElementById('btn-import-trigger'), () => document.getElementById('fileInput').click());
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const data = JSON.parse(ev.target.result);
+            document.getElementById('lesson-title').value = data.title;
+            const inputs = document.querySelectorAll('.sentence-box');
+            data.sentences.forEach((s, i) => { if(inputs[i]) inputs[i].value = s; });
+        };
+        reader.readAsText(e.target.files[0]);
+    });
+
+    window.onload = initData;
+</script>
+
+</body>
+</html>
