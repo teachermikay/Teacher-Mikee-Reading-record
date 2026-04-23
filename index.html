@@ -21,7 +21,8 @@
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            touch-action: pan-y; /* Requirement 2: Scroll consistency */
+            /* Task 2: Scroll Consistency */
+            touch-action: pan-y;
         }
 
         body, html {
@@ -45,7 +46,7 @@
             padding: 20px;
         }
 
-        /* Shared Scrollable Container Style - Requirement 2 */
+        /* Task 2: Scrollable Screens */
         .scrollable-screen {
             display: none;
             flex-direction: column;
@@ -152,9 +153,9 @@
         .btn-start { background-color: #ff85a2; color: white; font-size: 1.5rem; }
         .btn-end-practice { background-color: #ff6b6b; color: white; display: none; }
         .btn-whole-sentence { background-color: #ffd93d; margin-bottom: 1vh; font-size: 1.3rem; }
-        .btn-reset-input { background-color: #ff9aa2; color: white; }
+        .btn-reset { background-color: #ff9aa2; color: white; }
 
-        /* Student Number Grid - Requirement 1 */
+        /* Task 1: Student Number Grid */
         .number-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -176,9 +177,9 @@
             border: 4px solid white;
         }
 
-        .num-box.selected { background-color: var(--grey) !important; }
+        .num-box.tapped { background-color: var(--grey) !important; }
 
-        /* Sentence Box UI */
+        /* Chibi Boxes for Sentences */
         .chibi-box {
             width: 90%;
             min-height: 15vh;
@@ -263,8 +264,8 @@
 
     <div id="main-menu">
         <div id="menu-buttons" class="btn-group">
-            <button class="btn-input" id="btn-show-input">⌨️ INPUT</button>
-            <button class="btn-start" id="btn-main-start">🚀 START</button>
+            <button class="btn-input" id="open-input-btn">⌨️ INPUT</button>
+            <button class="btn-start" id="start-activity-btn">🚀 START</button>
         </div>
 
         <div id="input-panel">
@@ -282,24 +283,23 @@
                 <input type="text" class="sentence-box" placeholder="10">
             </div>
             <div class="btn-group">
-                <button style="background:var(--peach)" id="btn-save">💾 SAVE LOCAL</button>
-                <button class="btn-reset-input" id="btn-reset-all">🔄 RESET</button> <button style="background:var(--blue)" id="btn-export">📤 EXPORT</button>
-                <button style="background:var(--lavender)" id="btn-import-trigger">📥 IMPORT</button>
+                <button style="background:var(--peach)" id="save-local-btn">💾 SAVE LOCAL</button>
+                <button class="btn-reset" id="reset-input-btn">🔄 RESET</button> <button style="background:var(--blue)" id="export-btn">📤 EXPORT</button>
+                <button style="background:var(--lavender)" id="import-trigger">📥 IMPORT</button>
                 <input type="file" id="fileInput" style="display:none" accept=".json">
-                <button style="background:#ddd" id="btn-close-input">CLOSE</button>
+                <button style="background:#ddd" id="close-input-btn">CLOSE</button>
             </div>
         </div>
     </div>
 
     <div id="student-screen" class="scrollable-screen">
         <h2 style="color:#ff85a2">Choose your seat number</h2>
-        <div class="number-grid" id="number-grid">
-            </div>
+        <div class="number-grid" id="number-grid"></div>
     </div>
 
     <div id="choice-screen" class="scrollable-screen"></div>
 
-    <div id="reading-screen" class="scrollable-screen bg-practice" style="position:fixed; top:0; left:0; z-index:100; padding:20px;">
+    <div id="reading-screen" class="scrollable-screen bg-practice" style="position:fixed; top:0; left:0; z-index:100;">
         <div class="recording-container">
             <button id="btn-record" class="btn-rec">🎤 Record</button>
             <button id="btn-stop-rec" class="btn-stop" disabled>⏹ Stop</button>
@@ -312,7 +312,7 @@
         
         <div class="nav-controls">
             <button id="btn-back-to-choice" style="background:#ccc">⬅ BACK</button>
-            <button id="btn-finish" style="background:#50c878; color:white; font-size:1.5rem">⭐ FINISH</button>
+            <button id="btn-trigger-reward" style="background:#50c878; color:white; font-size:1.5rem">⭐ FINISH</button>
         </div>
     </div>
 
@@ -333,14 +333,20 @@
         ]
     };
 
+    const synth = window.speechSynthesis;
+    let preferredVoice = null;
+    let isReadingSentence = false;
+    let currentSentenceText = "";
+    let studentNumber = 0; // Task 1
+
     /* ============================================================
-       📱 TOUCH FIX (Requirement 2)
+       📱 2. SCROLL + TOUCH FIX (GLOBAL)
        ============================================================ */
     let touchMoved = false;
     document.addEventListener("touchstart", () => { touchMoved = false; }, { passive: true });
     document.addEventListener("touchmove", () => { touchMoved = true; }, { passive: true });
 
-    function addTouchSafeListener(element, callback) {
+    function handleInteraction(element, callback) {
         element.addEventListener("click", function(e) {
             if (touchMoved) return;
             callback(e);
@@ -348,19 +354,23 @@
     }
 
     /* ============================================================
-       ☁️ 4. GOOGLE DRIVE AUTO UPLOAD
+       ☁️ 4. GOOGLE DRIVE AUTO UPLOAD (FIXED)
        ============================================================ */
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwexWcCAuhtRx9AEuubE0UdlrszWsNvmCM3WLP7r73eiHTW-LBQfY6Z0rmms5qU6pIAEg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbDmY0LJrXZ9kRG8l_u6PPlj4tegln06DU2PtDvpzPKaBuFreJrqFrgQz79nruaQfYphw/exec";
 
     async function uploadToDrive(blob, fileName) {
         const reader = new FileReader();
         reader.onloadend = async function () {
-            const base64data = reader.result.split(',')[1];
+            const base64data = reader.result.split(",")[1];
             try {
-                const response = await fetch(SCRIPT_URL, {
+                // Task 4: Content-Type must be text/plain for some Apps Script POST setups
+                await fetch(SCRIPT_URL, {
                     method: "POST",
-                    body: JSON.stringify({ file: base64data, fileName: fileName }),
-                    headers: { "Content-Type": "application/json" }
+                    body: JSON.stringify({
+                        file: base64data,
+                        fileName: fileName
+                    }),
+                    headers: { "Content-Type": "text/plain" }
                 });
                 alert("✅ Recording uploaded successfully!");
             } catch (error) {
@@ -371,35 +381,39 @@
     }
 
     /* ============================================================
-       🎤 3. VOICE RECORDING (Requirement 3 & 5)
+       🎤 3, 5, 6. AUDIO SYSTEM (iPAD SAFE)
        ============================================================ */
     let mediaRecorder;
     let audioChunks = [];
     let audioURL = "";
-    let studentNumber = 0;
-    let playbackAudio = new Audio();
+    let playbackObj = new Audio(); // Task 6
 
-    // 🔊 5. Unlock Audio for iPad
+    // Task 6: Unlock Audio
     document.body.addEventListener("click", function() {
         let unlock = new Audio();
         unlock.play().catch(()=>{});
     }, { once: true });
 
     async function startRecording() {
-        if (typeof MediaRecorder === "undefined") {
-            alert("Recording not supported on this device.");
-            return;
-        }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Task 3: Setup options
             let options = { mimeType: 'audio/mp4' };
             if (!MediaRecorder.isTypeSupported(options.mimeType)) {
                 options = { mimeType: 'audio/webm' };
             }
+
             mediaRecorder = new MediaRecorder(stream, options);
             audioChunks = [];
-            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
-            
+
+            mediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) {
+                    audioChunks.push(e.data);
+                }
+            };
+
+            // Task 5: Stop Behavior
             mediaRecorder.onstop = function () {
                 const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
                 audioURL = URL.createObjectURL(blob);
@@ -408,6 +422,7 @@
                 audioChunks = [];
                 document.getElementById('btn-play-rec').disabled = false;
                 document.getElementById('rec-status').innerText = "";
+                stream.getTracks().forEach(t => t.stop());
             };
 
             mediaRecorder.start();
@@ -415,7 +430,9 @@
             document.getElementById('btn-stop-rec').disabled = false;
             document.getElementById('btn-play-rec').disabled = true;
             document.getElementById('rec-status').innerText = "🔴 Recording...";
-        } catch (err) { alert("Mic Error: " + err.message); }
+        } catch (err) {
+            alert("Mic access error: " + err.message);
+        }
     }
 
     function stopRecording() {
@@ -428,71 +445,48 @@
 
     function playRecording() {
         if (!audioURL) return;
-        playbackAudio.src = audioURL;
-        playbackAudio.play().catch(() => { alert("Tap again to play the recording."); });
+        playbackObj.src = audioURL;
+        playbackObj.play().catch(() => {
+            alert("Tap again to play.");
+        });
     }
 
     /* ============================================================
-       📖 GAME LOGIC & SYSTEM
+       🧩 1. STUDENT SCREEN & FLOW
        ============================================================ */
-    const synth = window.speechSynthesis;
-    let currentSentenceText = "";
-    let isReadingSentence = false;
-
-    // Load Default Data
-    function initData() {
-        const saved = localStorage.getItem('mikee_hub_data');
-        const data = saved ? JSON.parse(saved) : DEFAULT_DATA;
-        document.getElementById('lesson-title').value = data.title;
-        const inputs = document.querySelectorAll('.sentence-box');
-        data.sentences.forEach((s, i) => { if(inputs[i]) inputs[i].value = s; });
-    }
-
-    // 🔁 7. RESET FUNCTION
-    function resetInputInterface() {
-        if(confirm("Are you sure you want to reset?")){
-            document.getElementById('lesson-title').value = "";
-            document.querySelectorAll('.sentence-box').forEach(i => i.value = "");
-            localStorage.removeItem('mikee_hub_data');
-        }
-    }
-
-    // 🧩 1. STUDENT NUMBER SELECTION
     function initStudentGrid() {
         const grid = document.getElementById('number-grid');
         grid.innerHTML = '';
-        for(let i=1; i<=20; i++) {
+        for (let i = 1; i <= 20; i++) {
             const box = document.createElement('div');
             box.className = 'num-box';
             box.innerText = i;
-            addTouchSafeListener(box, () => {
+            handleInteraction(box, () => {
                 studentNumber = i;
-                document.querySelectorAll('.num-box').forEach(b => b.classList.remove('selected'));
-                box.classList.add('selected');
-                setTimeout(showSentenceChoice, 300);
+                box.classList.add('tapped'); // Task 1: color to grey
+                setTimeout(startSelection, 300);
             });
             grid.appendChild(box);
         }
     }
 
-    function showSentenceChoice() {
-        const all = Array.from(document.querySelectorAll('.sentence-box')).map(i => i.value.trim()).filter(t => t.length > 0);
-        if (all.length < 1) return alert("No sentences found!");
+    function startSelection() {
+        const all = Array.from(document.querySelectorAll('.sentence-box')).map(i => i.value.trim()).filter(t => t !== "");
+        const pool = all.length > 0 ? all : DEFAULT_DATA.sentences;
+        const selected = pool.sort(() => 0.5 - Math.random()).slice(0, 4);
         
-        const selected = all.sort(() => 0.5 - Math.random()).slice(0, 4);
         const grid = document.getElementById('choice-screen');
         grid.innerHTML = '';
-        
         selected.forEach(text => {
-            const div = document.createElement('div');
-            div.className = 'chibi-box';
-            div.innerText = text;
-            addTouchSafeListener(div, () => openPractice(text));
-            grid.appendChild(div);
+            const box = document.createElement('div');
+            box.className = 'chibi-box';
+            box.innerText = text;
+            handleInteraction(box, () => openPractice(text));
+            grid.appendChild(box);
         });
 
         document.getElementById('student-screen').style.display = 'none';
-        grid.style.display = 'flex';
+        document.getElementById('choice-screen').style.display = 'flex';
         document.getElementById('end-practice-btn').style.display = 'block';
         document.getElementById('container').classList.replace('bg-menu', 'bg-practice');
     }
@@ -503,14 +497,16 @@
         document.getElementById('btn-play-rec').disabled = true;
         const display = document.getElementById('word-display');
         display.innerHTML = '';
+        
         sentence.split(/\s+/).forEach(word => {
             const btn = document.createElement('div');
             btn.className = 'word-btn';
             btn.innerText = word;
-            addTouchSafeListener(btn, () => {
+            handleInteraction(btn, () => {
                 if (isReadingSentence) return;
                 synth.cancel();
                 const utter = new SpeechSynthesisUtterance(word);
+                utter.voice = preferredVoice;
                 utter.rate = 0.7;
                 btn.classList.add('speaking');
                 utter.onend = () => btn.classList.remove('speaking');
@@ -518,76 +514,106 @@
             });
             display.appendChild(btn);
         });
+
         document.getElementById('choice-screen').style.display = 'none';
         document.getElementById('reading-screen').style.display = 'flex';
     }
 
-    function readFull() {
-        if (isReadingSentence) return;
-        synth.cancel();
-        isReadingSentence = true;
-        const utter = new SpeechSynthesisUtterance(currentSentenceText);
-        utter.rate = 0.7;
-        utter.onend = () => isReadingSentence = false;
-        synth.speak(utter);
+    /* ============================================================
+       🔁 7. RESET & HELPERS
+       ============================================================ */
+    function loadVoices() {
+        const voices = synth.getVoices();
+        preferredVoice = voices.find(v => v.lang.includes('en-US')) || voices[0];
+    }
+    if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = loadVoices;
+
+    function init() {
+        const saved = localStorage.getItem('mikee_hub_data');
+        if (saved) {
+            const data = JSON.parse(saved);
+            document.getElementById('lesson-title').value = data.title;
+            const inputs = document.querySelectorAll('.sentence-box');
+            data.sentences.forEach((s, i) => { if(inputs[i]) inputs[i].value = s; });
+        } else {
+            document.getElementById('lesson-title').value = DEFAULT_DATA.title;
+            const inputs = document.querySelectorAll('.sentence-box');
+            DEFAULT_DATA.sentences.forEach((s, i) => { if(inputs[i]) inputs[i].value = s; });
+        }
     }
 
-    /* ============================================================
-       EVENT BINDINGS
-       ============================================================ */
-    addTouchSafeListener(document.getElementById('btn-main-start'), () => {
+    // Bindings
+    handleInteraction(document.getElementById('start-activity-btn'), () => {
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('student-screen').style.display = 'flex';
         initStudentGrid();
     });
 
-    addTouchSafeListener(document.getElementById('btn-show-input'), () => {
+    handleInteraction(document.getElementById('open-input-btn'), () => {
         document.getElementById('input-panel').style.display = 'block';
         document.getElementById('menu-buttons').style.display = 'none';
     });
 
-    addTouchSafeListener(document.getElementById('btn-close-input'), () => {
+    handleInteraction(document.getElementById('close-input-btn'), () => {
         document.getElementById('input-panel').style.display = 'none';
         document.getElementById('menu-buttons').style.display = 'flex';
     });
 
-    addTouchSafeListener(document.getElementById('btn-save'), () => {
+    handleInteraction(document.getElementById('save-local-btn'), () => {
         const data = {
             title: document.getElementById('lesson-title').value,
             sentences: Array.from(document.querySelectorAll('.sentence-box')).map(i => i.value)
         };
         localStorage.setItem('mikee_hub_data', JSON.stringify(data));
-        alert("Saved! ✨");
+        alert("Saved locally! ✨");
     });
 
-    addTouchSafeListener(document.getElementById('btn-reset-all'), resetInputInterface);
+    // Task 7: Reset
+    handleInteraction(document.getElementById('reset-input-btn'), () => {
+        if(confirm("Clear all sentences and title?")) {
+            document.getElementById('lesson-title').value = "";
+            document.querySelectorAll('.sentence-box').forEach(i => i.value = "");
+            localStorage.removeItem('mikee_hub_data');
+        }
+    });
 
-    addTouchSafeListener(document.getElementById('btn-record'), startRecording);
-    addTouchSafeListener(document.getElementById('btn-stop-rec'), stopRecording);
-    addTouchSafeListener(document.getElementById('btn-play-rec'), playRecording);
-    addTouchSafeListener(document.getElementById('btn-read-full'), readFull);
+    handleInteraction(document.getElementById('btn-record'), startRecording);
+    handleInteraction(document.getElementById('btn-stop-rec'), stopRecording);
+    handleInteraction(document.getElementById('btn-play-rec'), playRecording);
 
-    addTouchSafeListener(document.getElementById('btn-back-to-choice'), () => {
+    handleInteraction(document.getElementById('btn-read-full'), () => {
+        if (isReadingSentence) return;
+        synth.cancel();
+        isReadingSentence = true;
+        const utter = new SpeechSynthesisUtterance(currentSentenceText);
+        utter.voice = preferredVoice;
+        utter.rate = 0.7;
+        utter.onend = () => isReadingSentence = false;
+        synth.speak(utter);
+    });
+
+    handleInteraction(document.getElementById('btn-back-to-choice'), () => {
+        synth.cancel();
         document.getElementById('reading-screen').style.display = 'none';
         document.getElementById('choice-screen').style.display = 'flex';
     });
 
-    addTouchSafeListener(document.getElementById('btn-finish'), () => {
+    handleInteraction(document.getElementById('btn-trigger-reward'), () => {
         const star = document.getElementById('reward-star');
         star.style.display = 'block';
         setTimeout(() => {
             star.style.display = 'none';
             document.getElementById('reading-screen').style.display = 'none';
             document.getElementById('choice-screen').style.display = 'flex';
-        }, 1000);
+        }, 1500);
     });
 
-    addTouchSafeListener(document.getElementById('end-practice-btn'), () => {
-        location.reload(); // Quick reset to menu
+    handleInteraction(document.getElementById('end-practice-btn'), () => {
+        location.reload();
     });
 
-    // Export/Import
-    addTouchSafeListener(document.getElementById('btn-export'), () => {
+    // Export/Import (Keep existing feature)
+    handleInteraction(document.getElementById('export-btn'), () => {
         const data = {
             title: document.getElementById('lesson-title').value,
             sentences: Array.from(document.querySelectorAll('.sentence-box')).map(i => i.value)
@@ -599,7 +625,10 @@
         a.click();
     });
 
-    addTouchSafeListener(document.getElementById('btn-import-trigger'), () => document.getElementById('fileInput').click());
+    handleInteraction(document.getElementById('import-trigger'), () => {
+        document.getElementById('fileInput').click();
+    });
+
     document.getElementById('fileInput').addEventListener('change', (e) => {
         const reader = new FileReader();
         reader.onload = (ev) => {
@@ -611,7 +640,8 @@
         reader.readAsText(e.target.files[0]);
     });
 
-    window.onload = initData;
+    init();
+    loadVoices();
 </script>
 
 </body>
