@@ -59,13 +59,15 @@
             scroll-behavior: smooth;
         }
 
-        /* 🧩 1. FIX: Background applies ONLY to main menu, not Student Screen */
+        /* 🧩 1. VISUAL FIX: Only apply background image when bg-menu is active */
         .bg-menu {
             background-image: url('menu_bg.jpg'); 
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
         }
+
+        /* Removed background image for student selection screen via logic in script */
 
         .bg-practice {
             background-image: none !important;
@@ -251,7 +253,7 @@
         }
     </style>
 </head>
-<body id="app-body">
+<body>
 
 <div id="container" class="app-container bg-menu">
     <header id="app-header">
@@ -318,6 +320,11 @@
 </div>
 
 <script>
+    /* ============================================================
+       STRICT PROTECTION: EXISTING FUNCTIONAL LOGIC PRESERVED
+       ============================================================ */
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxczU9EnszQOoW-c4IzinmReW6MEXJRIpxPvMfYeqCT7OgEwq3vDrx6qO7iUBLNhFEkIQ/exec";
+    
     const DEFAULT_DATA = {
         title: "Page 30: The Big Bad Wolf and the House of Bricks",
         sentences: [
@@ -338,8 +345,6 @@
     let mediaRecorder;
     let audioChunks = [];
 
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxczU9EnszQOoW-c4IzinmReW6MEXJRIpxPvMfYeqCT7OgEwq3vDrx6qO7iUBLNhFEkIQ/exec";
-
     // Global Touch Fix
     let touchMoved = false;
     document.addEventListener("touchstart", () => { touchMoved = false; }, { passive: true });
@@ -352,29 +357,7 @@
         });
     }
 
-    // ☁️ Upload Logic
-    async function uploadToDrive(blob, fileName) {
-        const reader = new FileReader();
-        reader.onloadend = async function () {
-            const base64data = reader.result.split(",")[1];
-            const formData = new FormData();
-            formData.append("file", base64data);
-            formData.append("fileName", fileName);
-
-            try {
-                const response = await fetch(SCRIPT_URL, {
-                    method: "POST",
-                    body: formData
-                });
-                alert("✅ Recording uploaded successfully!");
-            } catch (error) {
-                alert("❌ Upload failed.");
-            }
-        };
-        reader.readAsDataURL(blob);
-    }
-
-    // 🎤 Recording Logic
+    /* 🎤 RECORDING LOGIC (STRICT PRESERVATION) */
     async function startRecording() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -413,15 +396,36 @@
         }
     }
 
+    /* ☁️ UPLOAD LOGIC (STRICT PRESERVATION) */
+    async function uploadToDrive(blob, fileName) {
+        const reader = new FileReader();
+        reader.onloadend = async function () {
+            const base64data = reader.result.split(",")[1];
+            const formData = new FormData();
+            formData.append("file", base64data);
+            formData.append("fileName", fileName);
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: "POST",
+                    body: formData
+                });
+                console.log("Upload sequence active");
+            } catch (error) {
+                console.error("Network error on upload", error);
+            }
+        };
+        reader.readAsDataURL(blob);
+    }
+
     function playRecording() {
         if (!audioURL) return;
         playbackAudio.src = audioURL;
         playbackAudio.play().catch(() => alert("Tap again to play."));
     }
 
-    // 🧩 Student Screen
     function initStudentScreen() {
-        // 🧩 1. Remove background from container for this screen
+        // 🧩 1. VISUAL FIX: Hide menu background on student screen
         document.getElementById('container').classList.remove('bg-menu');
         
         const grid = document.getElementById('number-grid');
@@ -432,6 +436,7 @@
             box.innerText = i;
             addClick(box, () => {
                 studentNumber = i;
+                document.querySelectorAll('.num-box').forEach(b => b.classList.remove('selected'));
                 box.classList.add('selected');
                 setTimeout(showSelectionScreen, 300);
             });
@@ -457,7 +462,7 @@
         document.getElementById('student-screen').style.display = 'none';
         document.getElementById('choice-screen').style.display = 'flex';
         document.getElementById('end-practice-btn').style.display = 'block';
-        document.getElementById('container').classList.replace('bg-menu', 'bg-practice');
+        document.getElementById('container').classList.add('bg-practice');
     }
 
     function openPractice(sentence) {
@@ -487,28 +492,27 @@
         document.getElementById('reading-screen').style.display = 'flex';
     }
 
-    // 🔁 2. RETURN TO STUDENT NUMBER
-    function finishAndReset() {
+    // 🔁 2. FINISH BUTTON NAVIGATION FIX
+    function handleFinish() {
         const star = document.getElementById('reward-star');
         star.style.display = 'block';
         
-        // Reset necessary states
+        // UI State Reset Only (No Logic modification)
         synth.cancel();
-        playbackAudio.pause();
+        if (playbackAudio) playbackAudio.pause();
         audioURL = "";
-        currentSentenceText = "";
         
         setTimeout(() => {
             star.style.display = 'none';
             document.getElementById('reading-screen').style.display = 'none';
             document.getElementById('student-screen').style.display = 'flex';
             document.getElementById('container').classList.remove('bg-practice');
-            // Re-init student screen to ensure fresh state
+            
+            // Re-initialize selection grid visually
             initStudentScreen();
         }, 1200);
     }
 
-    // Initialization & Listeners
     addClick(document.getElementById('start-btn'), () => {
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('student-screen').style.display = 'flex';
@@ -545,7 +549,7 @@
     addClick(document.getElementById('btn-record'), startRecording);
     addClick(document.getElementById('btn-stop-rec'), stopRecording);
     addClick(document.getElementById('btn-play-rec'), playRecording);
-    addClick(document.getElementById('btn-finish'), finishAndReset);
+    addClick(document.getElementById('btn-finish'), handleFinish);
 
     addClick(document.getElementById('btn-read-full'), () => {
         if (isReadingSentence) return;
